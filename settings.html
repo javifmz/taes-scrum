@@ -1,0 +1,147 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css">
+    <style>
+      div#settings {
+        padding: 15px;
+      }
+      div.groups p,
+      div.people p,
+      div.hours p,
+      div.info p {
+        margin: 0;
+      }
+      div.groups,
+      div.people,
+      div.hours {
+        margin-bottom: 8px;
+      }
+      div.info {
+        margin-top: 16px;
+      }
+      div.info span.sp {
+        font-weight: bold;
+        color: #6EA952;
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="settings" v-if="board">
+
+      <h3>Configurar tablero</h3>
+
+      <div class="groups">
+        <p>¿Cuál es tu grupo?</p>
+        <button v-for="group in groupsEnabled" :key="group.id" @click="setGroup(group.id)" :class="{ 'mod-primary': group.id == board.group }">{{ group.name }}</button>
+        <button class="delete mod-danger" @click="removeGroup()">Borrar</button>
+      </div>
+
+      <div class="people">
+        <p>¿Cuántas personas sois en el grupo?</p>
+        <button v-for="people in peopleList" :key="people" @click="setPeople(people)" :class="{ 'mod-primary': people == board.people }">{{ people }}</button>
+        <button class="delete mod-danger" @click="removePeople()">Borrar</button>
+      </div>
+
+      <div class="hours">
+        <p>¿A cuántas horas equivale un story point en vuestro equipo?</p>
+        <button v-for="hours in hoursList" :key="hours" @click="setHours(hours)" :class="{ 'mod-primary': hours == board.hours }">{{ hours }}</button>
+        <button class="delete mod-danger" @click="removeHours()">Borrar</button>
+      </div>
+
+      <div class="info" v-if="board.group && board.people && board.hours && group">
+        <h3>Tablero configurado con éxito</h3>
+        <ul>
+          <li>— El curso se divide en <strong>{{ group.sprints.length-1 }}</strong> sprints (el Sprint 0 no cuenta)</li>
+          <li v-for="(sprint, index) in group.sprints" :key="index+1" v-if="index > 0">— La capacidad del equipo para el <strong>Sprint {{ index }}</strong> es de <strong>{{ getSprintCapacitySP(sprint) | fix }} SP</strong> ({{ getSprintCapacityHours(sprint) }} horas)</li>
+          <li>— La capacidad <strong>total</strong> del equipo es de <strong>{{ getCapacitySP() | fix }} SP</strong> ({{ getCapacityHours() }} horas)</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.min.js"></script>
+    <script src="./common.js?cache=3"></script>
+    <script>
+
+/* global TrelloPowerUp */
+var t = TrelloPowerUp.iframe();
+
+new Vue({
+  el: '#settings',
+  data () {
+    return {
+      groupsEnabled,
+      board: null,
+      group: null,
+      peopleList: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      hoursList: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    }
+  },
+  async created () {
+    await this.initialize();
+  },
+  methods: {
+    async initialize () {
+      const board = await t.get('board', 'shared');
+      this.board = {
+        group: board.group,
+        people: board.people,
+        hours: board.hours,
+      };
+      if (this.board.group) {
+        this.group = groupsMap[this.board.group];
+      }
+    },
+    async setGroup (group) {
+      await t.set('board', 'shared', 'group', group);
+      this.board.group = await t.get('board', 'shared', 'group');
+      this.group = groupsMap[this.board.group];
+    },
+    async removeGroup () {
+      await t.remove('board', 'shared', 'group');
+      this.board.group = await t.get('board', 'shared', 'group');
+      this.group = null;
+    },
+    async setPeople (people) {
+      await t.set('board', 'shared', 'people', people);
+      this.board.people = await t.get('board', 'shared', 'people');
+    },
+    async removePeople () {
+      await t.remove('board', 'shared', 'people');
+      this.board.people = await t.get('board', 'shared', 'people');
+    },
+    async setHours (hours) {
+      await t.set('board', 'shared', 'hours', hours);
+      this.board.hours = await t.get('board', 'shared', 'hours');
+    },
+    async removeHours () {
+      await t.remove('board', 'shared', 'hours');
+      this.board.hours = await t.get('board', 'shared', 'hours');
+    },
+    getSprintCapacitySP(sprint) {
+      return sprint.weeks * this.group.hoursPersonWeek * this.board.people / this.board.hours;
+    },
+    getSprintCapacityHours(sprint) {
+      return sprint.weeks * this.group.hoursPersonWeek * this.board.people;
+    },
+    getCapacitySP() {
+      return this.group.sprints.slice(1).reduce((acum, sprint) => acum + this.getSprintCapacitySP(sprint), 0);
+    },
+    getCapacityHours() {
+      return this.group.sprints.slice(1).reduce((acum, sprint) => acum + this.getSprintCapacityHours(sprint), 0);
+    },
+  },
+  filters: {
+    fix: function (value) {
+      return value % 1 !== 0 ? value.toFixed(1) : Number(value);
+    }
+  }
+});
+    </script>
+
+  </body>
+</html>

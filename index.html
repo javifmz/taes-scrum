@@ -1,1 +1,124 @@
-Hello world!
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    <p>TAES Scrum Power-up</p>
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script>
+
+/* global TrelloPowerUp */
+
+var Promise = TrelloPowerUp.Promise;
+
+TrelloPowerUp.initialize({
+  'card-back-section': (t, options) => {
+    return {
+      title: 'Scrum',
+      icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/chart.svg?v=1734085371145',
+      content: {
+        type: 'iframe',
+        url: t.signUrl('./card-section.html'),
+        height: 280,
+      }
+    };
+  },
+  'card-badges': (t, options) => {
+    return t.card("id").then(card => {
+      return t.get(card.id, 'shared').then(data => {
+        const badges = [];
+        if ('type' in data) {
+          const type = data.type;
+          if (type == 'story') {
+            badges.push({
+              text: 'Historia',
+              color: 'blue',
+              icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/story.svg?v=1740588957363',
+            });
+          } else if (type == 'epic') {
+            badges.push({
+              text: 'Épica',
+              color: 'orange',
+              icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/sitemap-solid.svg?v=1740583068945',
+            });
+          } else if (type == 'topic') {
+            badges.push({
+              text: 'Tema',
+              color: 'red',
+              icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/sitemap-solid.svg?v=1740583068945',
+            });
+          }
+        }
+        if ('sp' in data) {
+          const sp = data.sp;
+          badges.push({
+            text: sp,
+            color: 'blue',
+            icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/sp.svg?v=1734085370646',
+          });
+        }
+        if ('sprint' in data) {
+          const sprint = data.sprint;
+          badges.push({
+            text: 'Sprint ' + (sprint - 1),
+            color: 'blue',
+            icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/sprint.svg?v=1734085371562',
+          })
+        }
+        if ('date' in data) {
+          const date = data.date;
+          badges.push({
+            text: date,
+            color: 'green',
+            icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/check.svg?v=1734085371828',
+          })
+        }
+        return badges;
+      });
+    });
+  },
+  'list-actions': (t, options) => {
+    return t.list('id', 'cards').then(list => {
+      const promises = list.cards.map(card => t.get(card.id, 'shared', 'sp'));
+      return Promise.all(promises).then(function (data) {
+        const total = data.reduce((acum, sp) => sp !== undefined ? acum + Number(sp) : acum, 0);
+        const actions = [];
+        if (total > 0) {
+          actions.push({
+            text: total + ' SP en esta lista',
+            callback: t => {}
+          });
+        }
+        return actions;
+      });
+    });
+  },
+  'board-buttons': (t, options) => {
+    return [{
+      icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/chart.svg?v=1734085371145',
+      text: 'Burn-down',
+      callback: t => {
+        return t.modal({
+          url: './summary.html',
+          height: 400,
+          title: 'Burn-down',
+        });
+      }
+    }, {
+      icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/cog.svg?v=1734085370224',
+      text: 'Configurar',
+      callback: t => {
+        return t.modal({
+          url: './settings.html',
+          height: 450,
+          title: 'Configurar',
+        });
+      }
+    }];
+  },
+});
+
+    </script>
+  </body>
+</html>

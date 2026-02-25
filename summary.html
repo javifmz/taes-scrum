@@ -1,0 +1,303 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css">
+    <style>
+      div#summary {
+        padding: 15px;
+      }
+      button span {
+        margin-left: .5em;
+        opacity: .5;
+      }
+      canvas {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        height: 220px;
+        max-height: 220px;
+        width: 100%;
+      }
+      p.message {
+        margin-top: 8px;
+        padding: 8px;
+        background-color: rgba(9, 30, 66, .04);
+        border-radius: 3px;
+      }
+      div.sprints button:last-child {
+        float: right;
+      }
+      div.member {
+        display: flex;
+      }
+      div.member span.circle {
+        background-color: #dfe1e6;
+        border-radius: 32px;
+        height: 32px; width: 32px;
+        line-height: 32px;
+        overflow: hidden;
+        text-align: center;
+        margin: 0px 8px 4px 0px;
+        position: relative;
+      }
+      div.member span.circle span.avatar {
+        position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px;
+        background-position: center center;
+        background-size: cover;
+      }
+      div.member span.name {
+        line-height: 32px;
+        margin: 0px 8px 4px 0px;
+      }
+      div.member span.sp {
+        font-weight: bold;
+        line-height: 32px;
+      }
+      div.member span.spr {
+        line-height: 32px;
+      }
+      div.total {
+        margin-bottom: 10px;
+      }
+      div.total span.sp {
+        font-weight: bold;
+        line-height: 32px;
+      }
+      div.total span.spr {
+        line-height: 32px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="summary">
+      
+      <template v-if="board && group && board.hours && board.people">
+
+        <div class="sprints" v-if="group">
+          <button v-for="(sprint, index) in group.sprints" :key="index" @click="selectSprint(index)" :class="{ 'mod-primary': index === selectedSprintIndex }">Sprint {{ index }} <span>{{ sprintsStoryPoints[index] }} SP</span></button>
+          <button @click="download()" v-if="chart">Descargar en PNG</button>
+        </div>
+  
+        <canvas class="chart" height="250"></canvas>
+
+        <div class="total" v-if="group">
+          <span class="sp">Total:</span>
+          <span class="sp">&nbsp;{{ sprintsStoryPoints[selectedSprintIndex] }} SP</span>
+          <span class="spr">&nbsp;({{ sprintsStoryPointsReal[selectedSprintIndex] }} SP dedicados)</span>
+        </div>
+
+        <div class="members" v-if="group">
+          <div class="member" v-for="member in members" :key="member.id">
+            <span class="circle">
+              <span class="initials">{{ member.initials }}</span>
+              <span class="avatar" :style="'background-image: url(' + member.avatar + ');'"></span>
+            </span>
+            <span class="name">{{ member.fullName }} <span>({{ member.username }})</span></span>
+            <span class="sp">{{ member.sp }} SP</span>
+            <span class="spr">&nbsp;({{ member.spr }} SP dedicados)</span>
+          </div>
+        </div>
+
+      </template>
+      <p class="message" v-else>Para poder ver el resumen hay que configurar previamente el tablero en la sección <strong>Configurar</strong></p>
+
+    </div>
+
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.5.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.min.js"></script>
+    <script src="./common.js?cache=3"></script>
+    <script>
+
+/* global TrelloPowerUp */
+var t = TrelloPowerUp.iframe();
+
+new Vue({
+  el: '#summary',
+  data () {
+    return {
+      board: null,
+      group: null,
+      selectedSprint: null,
+      selectedSprintIndex: null,
+      sprintsStoryPoints: [],
+      sprintsStoryPointsReal: [],
+      cards: [],
+      chart: null,
+      members: null,
+    }
+  },
+  async mounted () {
+    await this.initialize();
+  },
+  methods: {
+    async initialize () {
+      const cards = await t.cards('id', 'members');
+      const cardsData = await Promise.all(cards.map(card => t.get(card.id, 'shared')));
+      this.cards = cardsData.map((cardData, index) => {
+        return {
+          sp: cardData.sp ? Number(cardData.sp) : undefined,
+          spr: cardData.spr ? Number(cardData.spr) : undefined,
+          sprint: cardData.sprint ? Number(cardData.sprint) : undefined,
+          date: cardData.date,
+          members: cards[index].members,
+        }
+      });
+      const board = await t.get('board', 'shared');
+      this.board = {
+        group: board.group,
+        people: board.people,
+        hours: board.hours,
+      };
+      if (this.board.group) {
+        this.group = groupsMap[this.board.group];
+        this.sprintsStoryPoints = this.group.sprints.map(sprint => 0);
+        this.sprintsStoryPointsReal = this.group.sprints.map(sprint => 0);
+        for (const card of this.cards) {
+          if (card.sprint && card.sp && (card.type != 'epic' && card.type != 'topic')) {
+            this.sprintsStoryPoints[card.sprint - 1] += card.sp;
+            if (card.spr) {
+              this.sprintsStoryPointsReal[card.sprint - 1] += card.spr;
+            }
+          }
+        }
+      }
+      setTimeout(this.selectCurrentSprint, 0);
+    },
+    selectSprint (index) {
+      this.selectedSprint = this.group.sprints[index];
+      this.selectedSprintIndex = index;
+      this.countMembersSP();
+      this.drawChart();
+    },
+    selectCurrentSprint () {
+      let found = false;
+      const today = moment().format('YYYY-MM-DD');
+      for (const [index, sprint] of this.group.sprints.entries()) {
+        const sprintFrom = moment(sprint.from, 'DD/MM/YYYY', true).format('YYYY-MM-DD');
+        const sprintTo = moment(sprint.to, 'DD/MM/YYYY', true).format('YYYY-MM-DD');
+        if (today >= sprintFrom && today < sprintTo) {
+          this.selectSprint(index);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        this.selectSprint(0);
+      }
+    },
+    countMembersSP () {
+      const membersMap = {};
+      for (const card of this.cards) {
+        if (card.sprint && card.sp && card.sprint === this.selectedSprintIndex + 1 && (card.type != 'epic' && card.type != 'topic')) {
+          for (const member of card.members) {
+            if (!(member.id in membersMap)) {
+              membersMap[member.id] = { 
+                id: member.id,
+                username: member.username, 
+                fullName: member.fullName,
+                avatar: member.avatar,
+                initials: member.initials,
+                sp: 0,
+                spr: 0,
+              }
+            }
+            const divisor = card.members.length || 1;
+            membersMap[member.id].sp += card.sp / divisor;
+            if (card.spr) {
+              membersMap[member.id].spr += card.spr / divisor;
+            }
+          }
+        }
+      }
+      this.members = Object.values(membersMap).sort((a, b) => b.sp - a.sp);
+    },
+    drawChart () {
+      const dayDone = {};
+      let total = 0;
+      for (const card of this.cards) {
+        if (card.sprint && card.sp && card.sprint === this.selectedSprintIndex + 1 && (card.type != 'epic' && card.type != 'topic')) {
+          total += card.sp;
+          if (card.date) {
+            const dateParsed = moment(card.date, 'DD/MM/YYYY', true).format('YYYY-MM-DD');
+            dayDone[dateParsed] = (dayDone[dateParsed] || 0) + card.sp;
+          }
+        }
+      }
+      let currentReal = total;
+      const burndownReal = [];
+      const today = moment().format('YYYY-MM-DD');
+      const dateFrom = moment(this.selectedSprint.from, 'DD/MM/YYYY').toDate();
+      const dateTo = moment(this.selectedSprint.to, 'DD/MM/YYYY').toDate();
+      for (var d = dateFrom; d <= dateTo; d.setDate(d.getDate() + 1)) {
+        const dateParsed = moment(d).format('YYYY-MM-DD');
+        if (dateParsed in dayDone) {
+          currentReal -= dayDone[dateParsed];
+        }
+        burndownReal.push({ x: dateParsed, y: dateParsed <= today ? currentReal : undefined });
+      }
+      const sprintCapacity = this.selectedSprint.weeks * this.group.hoursPersonWeek * this.board.people / this.board.hours;
+      const burndownIdeal = [];
+      for (let i = 0; i < burndownReal.length; i++) {
+        const dateParsed = burndownReal[i].x;
+        burndownIdeal.push({ x: dateParsed, y: sprintCapacity - i * sprintCapacity / (burndownReal.length - 1) });
+      }
+      const chartElement = document.querySelector('canvas.chart');
+      const ctx = chartElement.getContext('2d');
+      if (this.chart) {
+        this.chart.destroy();
+      }
+      this.chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'SP pendientes real',
+            data: burndownReal,
+            borderColor: '#0079BF',
+            backgroundColor: '#0079BF',
+          }, {
+            label: 'SP pendientes estimado',
+            data: burndownIdeal,
+            borderColor: '#ccc',
+            backgroundColor: '#ccc',
+          }]
+        },
+        options: {  
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 0
+          },
+          scales: {
+            x: {
+              ticks: {
+                display: false, //this removed the labels on the x-axis
+              },
+            },
+          },
+          elements: {
+            point: {
+              radius: 2,
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+            },
+          },
+        }
+      });
+    },
+    download () {
+      const hiddenAnchor = document.createElement('a');
+      hiddenAnchor.href = this.chart.toBase64Image();
+      hiddenAnchor.download = 'burndown.png';
+      hiddenAnchor.click();
+    }
+  },
+});
+    </script>
+
+  </body>
+</html>

@@ -1,0 +1,220 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css">
+    <style>
+      div.story-points,
+      div.sprints,
+      div.date,
+      div.types {
+        margin-bottom: 8px;
+      }
+      div.edit,
+      div.show {
+        font-size: 0px;
+      }
+      div.date input {
+        display: inline-block;
+        width: 150px;
+        margin: 8px 4px 0 0;
+      }
+      p {
+        margin: 0;
+      }
+      p.error {
+        color: #EB5A46;
+        font-size: 14px;
+        margin-bottom: none;
+        margin-top: 3px;
+      }
+      p.message {
+        margin-top: 8px;
+        padding: 8px;
+        background-color: rgba(9, 30, 66, .04);
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="card-section" v-if="card">
+      
+      <div class="types">
+        <p>¿Qué tipo de historia de usuario es?</p>
+        <button @click="setType('story')" :class="{ 'mod-primary': card.type == 'story' }">Historia de usuario</button>
+        <button @click="setType('epic')" :class="{ 'mod-primary': card.type == 'epic' }">Épica</button>
+        <button @click="setType('topic')" :class="{ 'mod-primary': card.type == 'topic' }">Tema</button>
+        <button class="remove mod-danger" @click="removeType()">Borrar</button>
+      </div>
+  
+      <template v-if="card.type == 'story'">
+
+        <div class="story-points">
+          <p>¿Cuántos puntos de historia se han estimado para esta tarea?</p>
+          <!-- <button v-for="sp in sps" :key="sp" @click="setStoryPoints(sp)" :class="{ 'mod-primary': sp === card.sp }">{{ sp }}</button>
+          <button class="delete mod-danger" @click="removeStoryPoints()">Borrar</button> -->
+          <button class="add" @click="addStoryPoint(-1)">-</button>
+          <button class="sp" :class="{ 'mod-primary': card.sp > 0 }">{{ card.sp }}</button>
+          <button class="add" @click="addStoryPoint(+1)">+</button>
+          <button class="remove mod-danger" @click="removeStoryPoints()">Borrar</button>
+        </div>
+
+        <div class="sprints" v-if="group">
+          <p>¿Para qué Sprint se ha comprometido el equipo a realizar esta tarea?</p>
+          <button v-for="(sprint, index) in group.sprints" :key="index" @click="setSprint(index+1)" :class="{ 'mod-primary': index+1 === card.sprint }">Sprint {{ index }}</button>
+          <button class="delete mod-danger" @click="removeSprint()">Borrar</button>
+        </div>
+        <div class="sprints" v-else=>
+          <p>¿Para qué Sprint se ha comprometido el equipo a realizar esta tarea?</p>
+          <p class="message">Para poder seleccionar el Sprint hay que configurar previamente el tablero en la sección <strong>Configurar</strong></p>
+        </div>
+
+        <div class="date">
+          <p>¿En qué fecha se ha dado por finalizada la tarea?</p>
+          <div class="show" v-if="card.date">
+            <button class="date mod-primary">{{ card.date }}</button>
+            <button class="remove mod-danger" @click="removeDate()">Borrar</button>
+          </div>
+          <div class="edit" v-else>
+            <input type="text" placeholder="DD/MM/YYYY" v-model="cardDate">
+            <button class="assign" @click="setDate()">Enviar</button>
+            <button class="today mod-primary" @click="setDateToday()">Hoy</button>
+            <p class="error" v-if="cardDateError">La fecha es inválida</p>
+          </div>
+        </div>
+
+        <div class="story-points-real">
+          <p>¿Cuántos puntos de historia se han dedicado finalmente en esta tarea?</p>
+          <button class="add" @click="addStoryPointReal(-1)">-</button>
+          <button class="spr" :class="{ 'mod-primary': card.spr > 0 }">{{ card.spr }}</button>
+          <button class="add" @click="addStoryPointReal(+1)">+</button>
+          <button class="remove mod-danger" @click="removeStoryPointsReal()">Borrar</button>
+        </div>
+      
+      </template>
+      <template v-else>
+      
+        <div class="story-points">
+          <p>¿Cuántos puntos de historia se han estimado para esta tarea? (Opcional)</p>
+          <!-- <button v-for="sp in sps" :key="sp" @click="setStoryPoints(sp)" :class="{ 'mod-primary': sp === card.sp }">{{ sp }}</button>
+          <button class="delete mod-danger" @click="removeStoryPoints()">Borrar</button> -->
+          <button class="add" @click="addStoryPoint(-1)">-</button>
+          <button class="sp" :class="{ 'mod-primary': card.sp > 0 }">{{ card.sp }}</button>
+          <button class="add" @click="addStoryPoint(+1)">+</button>
+          <button class="remove mod-danger" @click="removeStoryPoints()">Borrar</button>
+        </div>
+        
+      </template>
+
+    </div>
+
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="./common.js?cache=3"></script>
+    <script>
+
+/* global TrelloPowerUp */
+var t = TrelloPowerUp.iframe();
+
+new Vue({
+  el: '#card-section',
+  data () {
+    return {
+      card: null,
+      group: null,
+      sps: [1, 2, 3, 5, 8, 13, 21],
+      cardDateError: false,
+      cardDate: '',
+    }
+  },
+  async created () {
+    await this.initialize();
+  },
+  methods: {
+    async initialize () {
+      const card = await t.card('all');
+      const cardData = await t.get(card.id, 'shared');
+      this.card = {
+        id: card.id,
+        sp: cardData.sp || 0,
+        spr: cardData.spr || 0,
+        sprint: cardData.sprint,
+        date: cardData.date,
+        type: cardData.type,
+      }
+      const boardData = await t.get('board', 'shared');
+      if (boardData.group) {
+        this.group = groupsMap[boardData.group];
+      }
+    },
+    async setSprint (sprint) {
+      await t.set(this.card.id, 'shared', 'sprint', sprint);
+      this.card.sprint = await t.get(this.card.id, 'shared', 'sprint');
+    },
+    async removeSprint () {
+      await t.remove(this.card.id, 'shared', 'sprint');
+      this.card.sprint = await t.get(this.card.id, 'shared', 'sprint');
+    },
+    async setType (type) {
+      await t.set(this.card.id, 'shared', 'type', type);
+      this.card.type = await t.get(this.card.id, 'shared', 'type');
+    },
+    async removeType () {
+      await t.remove(this.card.id, 'shared', 'type');
+      this.card.type = await t.get(this.card.id, 'shared', 'type');
+    },
+    async setDate () {
+      this.cardDateError = false;
+      const dateParsed = moment(this.cardDate, 'DD/MM/YYYY', true);
+      if (dateParsed.isValid()) {
+        await t.set(this.card.id, 'shared', 'date', this.cardDate);
+        this.card.date = await t.get(this.card.id, 'shared', 'date');
+        this.cardDate = '';
+      } else {
+        this.cardDateError = true;
+      }
+    },
+    async setDateToday () {
+      this.cardDateError = false;
+      const dateParsed = moment(new Date()).format('DD/MM/YYYY');
+      await t.set(this.card.id, 'shared', 'date', dateParsed);
+      this.card.date = await t.get(this.card.id, 'shared', 'date');
+      this.cardDate = '';
+    },
+    async removeDate () {
+      await t.remove(this.card.id, 'shared', 'date');
+      this.card.date = await t.get(this.card.id, 'shared', 'date');
+    },
+    async addStoryPointReal(add) {
+      let spr = this.card.spr + add;
+      if (spr === 0) {
+        this.removeStoryPointsReal();
+      } else if (spr > 0) {
+        await t.set(this.card.id, 'shared', 'spr', spr);
+        this.card.spr = await t.get(this.card.id, 'shared', 'spr');
+      }
+    },
+    async removeStoryPointsReal() {
+      await t.remove(this.card.id, 'shared', 'spr');
+      this.card.spr = await t.get(this.card.id, 'shared', 'spr') || 0;
+    },
+    async addStoryPoint(add) {
+      let sp = this.card.sp + add;
+      if (sp === 0) {
+        this.removeStoryPoints();
+      } else if (sp > 0) {
+        await t.set(this.card.id, 'shared', 'sp', sp);
+        this.card.sp = await t.get(this.card.id, 'shared', 'sp');
+      }      
+    },
+    async removeStoryPoints() {
+      await t.remove(this.card.id, 'shared', 'sp');
+      this.card.sp = await t.get(this.card.id, 'shared', 'sp') || 0;
+    },
+  },
+});
+    </script>
+
+  </body>
+</html>
