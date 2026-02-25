@@ -74,7 +74,7 @@
       <template v-if="board && group && board.hours && board.people">
 
         <div class="sprints" v-if="group">
-          <button v-for="(sprint, index) in group.sprints" :key="index" @click="selectSprint(index)" :class="{ 'mod-primary': index === selectedSprintIndex }">Sprint {{ index }} <span>{{ sprintsStoryPoints[index] }} SP</span></button>
+          <button v-for="(sprint, index) in group.sprints" :key="index" @click="selectSprint(index)" :class="{ 'mod-primary': index === selectedSprintIndex }">Sprint {{ index+1 }} <span>{{ sprintsStoryPoints[index] }} SP</span></button>
           <button @click="download()" v-if="chart">Descargar en PNG</button>
         </div>
   

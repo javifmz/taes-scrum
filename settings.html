@@ -53,7 +53,7 @@
       <div class="info" v-if="board.group && board.people && board.hours && group">
         <h3>Tablero configurado con éxito</h3>
         <ul>
-          <li>— El curso se divide en <strong>{{ group.sprints.length-1 }}</strong> sprints (el Sprint 0 no cuenta)</li>
+          <li>— El curso se divide en <strong>{{ group.sprints.length }}</strong> sprints</li>
           <li v-for="(sprint, index) in group.sprints" :key="index+1" v-if="index > 0">— La capacidad del equipo para el <strong>Sprint {{ index }}</strong> es de <strong>{{ getSprintCapacitySP(sprint) | fix }} SP</strong> ({{ getSprintCapacityHours(sprint) }} horas)</li>
           <li>— La capacidad <strong>total</strong> del equipo es de <strong>{{ getCapacitySP() | fix }} SP</strong> ({{ getCapacityHours() }} horas)</li>
         </ul>

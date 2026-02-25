@@ -61,7 +61,7 @@
 
         <div class="sprints" v-if="group">
           <p>¿Para qué Sprint se ha comprometido el equipo a realizar esta tarea?</p>
-          <button v-for="(sprint, index) in group.sprints" :key="index" @click="setSprint(index+1)" :class="{ 'mod-primary': index+1 === card.sprint }">Sprint {{ index }}</button>
+          <button v-for="(sprint, index) in group.sprints" :key="index" @click="setSprint(index+1)" :class="{ 'mod-primary': index+1 === card.sprint }">Sprint {{ index+1 }}</button>
           <button class="delete mod-danger" @click="removeSprint()">Borrar</button>
         </div>
         <div class="sprints" v-else=>
