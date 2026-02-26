@@ -16,7 +16,7 @@ TrelloPowerUp.initialize({
   'card-back-section': (t, options) => {
     return {
       title: 'Scrum',
-      icon: 'img/chart-line-solid-full.svg',
+      icon: './img/chart-line-solid-full.svg',
       content: {
         type: 'iframe',
         url: t.signUrl('./card-section.html'),
@@ -96,7 +96,7 @@ TrelloPowerUp.initialize({
   },
   'board-buttons': (t, options) => {
     return [{
-      icon: 'img/chart-line-solid-full.svg',
+      icon: './img/chart-line-solid-full.svg',
       text: 'Burn-down',
       callback: t => {
         return t.modal({
