@@ -40,13 +40,13 @@ TrelloPowerUp.initialize({
             badges.push({
               text: 'Épica',
               color: 'orange',
-              icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/sitemap-solid.svg?v=1740583068945',
+              icon: './img/sitemap-solid-full.svg',
             });
           } else if (type == 'topic') {
             badges.push({
               text: 'Tema',
               color: 'red',
-              icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/sitemap-solid.svg?v=1740583068945',
+              icon: './img/sitemap-solid-full.svg',
             });
           }
         }
@@ -106,7 +106,7 @@ TrelloPowerUp.initialize({
         });
       }
     }, {
-      icon: 'https://cdn.glitch.global/3f31e763-1db4-45db-8420-04e66d9e98e2/cog.svg?v=1734085370224',
+      icon: './img/gear-solid-full.svg',
       text: 'Configurar',
       callback: t => {
         return t.modal({
