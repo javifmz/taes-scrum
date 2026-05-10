@@ -1,7 +1,6 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="frame-src 'self' data: blob:;"/>
     <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css">
     <style>
       div#summary {
@@ -290,11 +289,32 @@ new Vue({
         }
       });
     },
-    download () {
-      const hiddenAnchor = document.createElement('a');
-      hiddenAnchor.href = this.chart.toBase64Image();
-      hiddenAnchor.download = 'burndown.png';
-      hiddenAnchor.click();
+    // download () {
+    //   const hiddenAnchor = document.createElement('a');
+    //   hiddenAnchor.href = this.chart.toBase64Image();
+    //   hiddenAnchor.download = 'burndown.png';
+    //   hiddenAnchor.click();
+    // }
+    download() {
+      const canvas = this.chart.canvas;
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+
+        const url = URL.createObjectURL(blob);
+        const hiddenAnchor = document.createElement('a');
+
+        hiddenAnchor.href = url;
+        hiddenAnchor.download = 'burndown.png';
+        hiddenAnchor.rel = 'noopener';
+        hiddenAnchor.style.display = 'none';
+
+        document.body.appendChild(hiddenAnchor);
+        hiddenAnchor.click();
+        hiddenAnchor.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
     }
   },
 });
